@@ -38,7 +38,7 @@
                id="OCDFormat.toolbars.formatToolbar">
             <command
                   commandId="OCDFormat.commands.formatCommand"
-                  icon="icons/sample.gif"
+                  icon="icons/icon.gif"
                   tooltip="OCD Format"
                   id="OCDFormat.toolbars.formatCommand">
             </command>
