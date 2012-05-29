@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+
+   <extension point="org.eclipse.ui.commands">
+      <category
+            name="OCD Format Commands"
+            id="OCDFormat.commands.formatCommands">
+      </category>
+      <command
+            name="OCD Format Command"
+            categoryId="OCDFormat.commands.formatCommands"
+            id="OCDFormat.commands.formatCommand">
+      </command>
+   </extension>
+   <extension
+         point="org.eclipse.ui.handlers">
+      <handler
+            commandId="OCDFormat.commands.formatCommand"
+            class="ocdFormat.handlers.FormatCommandHandler">
+      </handler>
+   </extension>
+   <extension
+         point="org.eclipse.ui.bindings">
+      <key
+            commandId="OCDFormat.commands.formatCommand"
+            contextId="org.eclipse.ui.contexts.window"
+            sequence="M1+4"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration">
+      </key>
+   </extension>
+   
+   <extension
+         point="org.eclipse.ui.menus">
+      <menuContribution
+            locationURI="toolbar:org.eclipse.ui.main.toolbar?after=additions">
+         <toolbar
+               id="OCDFormat.toolbars.formatToolbar">
+            <command
+                  commandId="OCDFormat.commands.formatCommand"
+                  icon="icons/sample.gif"
+                  tooltip="OCD Format"
+                  id="OCDFormat.toolbars.formatCommand">
+            </command>
+         </toolbar>
+      </menuContribution>
+   </extension>
+
+</plugin>
