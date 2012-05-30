@@ -4,11 +4,11 @@
 
    <extension point="org.eclipse.ui.commands">
       <category
-            name="OCD Format Commands"
+            name="OCDFormat"
             id="OCDFormat.commands.formatCommands">
       </category>
       <command
-            name="OCD Format Command"
+            name="OCD Format"
             categoryId="OCDFormat.commands.formatCommands"
             id="OCDFormat.commands.formatCommand">
       </command>
