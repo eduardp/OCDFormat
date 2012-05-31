@@ -54,17 +54,6 @@ public class FormatCommandHandler extends AbstractHandler {
 
     try {
       String result = textSelection.getText();
-      //      if (result.indexOf('\n') == -1) {
-      //        return null;
-      //      }
-      //      if (result.indexOf('=') == -1) {
-      //        result = getTextWithColumnsAligned(result);
-      //      }
-      //      else {
-      //        result = getTextWithEqualsAligned(result);
-      //      }
-      //
-      //      document.replace(textSelection.getOffset(), textSelection.getLength(), result);
       result = getAlignedText(result);
 
       document.replace(textSelection.getOffset(), textSelection.getLength(), result);
@@ -78,9 +67,11 @@ public class FormatCommandHandler extends AbstractHandler {
   }
 
   private class Thing {
-    public String LHS;
-    public String RHS;
-    public String leadingWS;
+    public String LHS = "";
+    public String RHS = "";
+    public String separator = "";
+    public String leadingWS = "";
+    public String trailer   = "";
     public boolean ignore = false;
 
     @Override
@@ -94,55 +85,47 @@ public class FormatCommandHandler extends AbstractHandler {
     String[] lines  = text.split("\n");
     List<Thing> things = new ArrayList<Thing>();
     Pattern pattern = Pattern.compile("(\\s*)([^=]+)(={0,1})(.*)");
-    //    Pattern patternWS = Pattern.compile("(\\s*)\\S+");
     for (String line : lines) {
       Thing t = new Thing();
       Matcher m = pattern.matcher(line);
       if (m.find()) {
-        //        for (int i = 1; i <= m.groupCount(); i++) {
-        //          System.out.println("-" + m.group(i) + "-");
-        //        }
-        //        System.out.println("-----------------------------------------------");
-        t.leadingWS = m.group(1);
         String theLHS = m.group(2);
-        if (theLHS.startsWith("//")) {
-          t.LHS = line;
-          t.RHS = "";
-          t.ignore  = true;
+        if (theLHS.startsWith("//") || theLHS.contains("(") || theLHS.startsWith("/*") || theLHS.startsWith("*") || theLHS.endsWith("*\\\\")) {
+          t.LHS    = line;
+          t.ignore = true;
         }
-        t.LHS = theLHS;
-        t.RHS = m.group(3).length()==0?"":m.group(4).trim();
+        else if (theLHS.contains("//")){
+          int idx = theLHS.indexOf("//");
+          t.LHS = theLHS.substring(0, idx);
+          t.trailer = theLHS.substring(idx);
+          t.leadingWS = m.group(1);
+          while (t.LHS.endsWith(" ")) {
+            t.trailer = " " + t.trailer;
+            t.LHS = t.LHS.substring(0, t.LHS.length()-1);
+          }
+        }
+        else {
+          t.leadingWS = m.group(1);
+          t.LHS       = theLHS;
+          t.separator = m.group(3);
+          t.RHS       = t.separator.length()==0?"":m.group(4).trim();
+        }
       }
-      //      else {
-      //        Matcher m2 = patternWS.matcher(line);
-      //        if (m2.find()) {
-      //          t.leadingWS = m2.group(1);
-      //          t.LHS = line.trim();
-      //          t.RHS = "";
-      //        }
       else {
-        t.leadingWS = "";
-        t.LHS = line;
-        t.RHS = "";
+        t.LHS    = line;
+        t.ignore = true;
       }
-      //      }
       things.add(t);
     }
-    int maxLHS = alignLeftHandSides(things);
-    //    for (Thing thing : things) {
-    //      System.out.println(thing);
-    //    }
-    maxLHS = 0;
-    for (Thing thing : things) {
-      if (thing.RHS.length()==0) {
-        continue;
-      }
-      if (maxLHS < thing.LHS.length()) {
-        maxLHS = thing.LHS.length();
-      }
-    }
-    alignEqualsSigns(things,maxLHS);
 
+    alignLeftHandSides(things);
+
+    alignEqualsSigns(things);
+
+    return buildFinalString(text, things);
+  }
+
+  private String buildFinalString(String text, List<Thing> things) {
     StringBuilder sb = new StringBuilder();
 
     boolean first = true;
@@ -155,10 +138,15 @@ public class FormatCommandHandler extends AbstractHandler {
       }
       sb.append(thing.leadingWS);
       sb.append(thing.LHS);
-      if (thing.RHS.length() > 0) {
-        sb.append("= ");
+      if (!thing.ignore && thing.RHS.length() > 0) {
+        if (thing.separator.length() > 0) {
+          sb.append(" ");
+          sb.append(thing.separator);
+          sb.append(" ");
+        }
         sb.append(thing.RHS);
       }
+      sb.append(thing.trailer);
     }
 
     if (text.endsWith("\n")) {
@@ -168,7 +156,18 @@ public class FormatCommandHandler extends AbstractHandler {
     return sb.toString();
   }
 
-  private void alignEqualsSigns(List<Thing> things, int maxLHS) {
+  private void alignEqualsSigns(List<Thing> things) {
+
+    int maxLHS = 0;
+    for (Thing thing : things) {
+      if (thing.ignore || thing.RHS.length() == 0) {
+        continue;
+      }
+      if (maxLHS < thing.LHS.length()) {
+        maxLHS = thing.LHS.length();
+      }
+    }
+
     for (Thing thing : things) {
       if (thing.RHS.length() == 0) {
         continue;
@@ -177,59 +176,64 @@ public class FormatCommandHandler extends AbstractHandler {
       for (int i = 0; i < target; i++) {
         thing.LHS += " ";
       }
+    }
 
+  }
+
+  private void alignLeftHandSides(List<Thing> things) {
+
+    List<List<String>> items = new ArrayList<List<String>>();
+    List<Integer>      maxes = new ArrayList<Integer>();
+
+    populateItemsAndMaxes(things, items, maxes);
+
+    padLHSFields(things, items, maxes);
+
+  }
+
+  private void padLHSFields(List<Thing> things, List<List<String>> items, List<Integer> maxes) {
+    for (int index = 0; index < items.size(); index++) {
+      List<String> cols = items.get(index);
+      if (!things.get(index).ignore) {
+        StringBuilder newLHS = new StringBuilder();
+        for (int i = 0; i < cols.size(); i++) {
+          String item = cols.get(i);
+          if (i > 0) {
+            newLHS.append(" ");
+          }
+          newLHS.append(pad(item,maxes.get(i)));
+        }
+        things.get(index).LHS = newLHS.toString();
+      }
     }
   }
 
-  private int alignLeftHandSides(List<Thing> things) {
-    List<List<String>> items = new ArrayList<List<String>>();
-    List<Integer> maxes = new ArrayList<Integer>();
-
+  private void populateItemsAndMaxes(List<Thing> things, List<List<String>> items, List<Integer> maxes) {
     Pattern pattern = Pattern.compile("\\s*(\\S+)\\s*");
-
     for (Thing t : things) {
       List<String> cols = new ArrayList<String>();
-      Matcher matcher = pattern.matcher(t.LHS);
-      int i = 0;
-      while (matcher.find()) {
-        String item = matcher.group(1);
-        cols.add(item);
-        if (i == maxes.size()) {
-          maxes.add(0);
+      if (!t.ignore) {
+        Matcher matcher = pattern.matcher(t.LHS);
+        for(int i = 0; matcher.find(); i++) {
+          String item = matcher.group(1);
+          cols.add(item);
+          if (i == maxes.size()) {
+            maxes.add(0);
+          }
+          maxes.set(i, Math.max(item.length(), maxes.get(i)));
         }
-        int length = item.length();
-        if (length > maxes.get(i)) {
-          maxes.set(i, length);
-        }
-        i++;
       }
       items.add(cols);
     }
-
-    int index = 0;
-    for (List<String> cols : items) {
-      int i = 0;
-      StringBuilder newLHS = new StringBuilder();
-      for (String item : cols) {
-        newLHS.append(item);
-        for (int j = item.length(); j < maxes.get(i); j++) {
-          newLHS.append(" ");
-        }
-        newLHS.append(" ");
-        i++;
-      }
-      things.get(index).LHS = newLHS.toString();
-      index++;
-    }
-
-    int maxLHS = maxes.size();
-    for (Integer i : maxes) {
-      maxLHS += i;
-    }
-    return maxLHS;
-
   }
 
+  private String pad(String field, int length) {
+    StringBuilder sb = new StringBuilder(field);
+    for (int i = 0; i < length - field.length(); i++) {
+      sb.append(" ");
+    }
+    return sb.toString();
+  }
 
   public static void main(String[] args) {
 
@@ -237,10 +241,9 @@ public class FormatCommandHandler extends AbstractHandler {
     txt="x\na b c d=b\n";
     txt = "  a b c d=b";
     txt="x\na b c d=b\n=c\nc ggg =\naaa\n";
-    //new FormatCommandHandler().getAlignedText(txt);
     System.out.println(new FormatCommandHandler().getAlignedText(txt));
     System.out.println();
-    //System.exit(0);
+
     txt ="ass=ass;\na = a";
     System.out.println(new FormatCommandHandler().getAlignedText(txt));
     System.out.println();
@@ -248,7 +251,9 @@ public class FormatCommandHandler extends AbstractHandler {
     txt = "PeriodicUpdateWindow.parent = parent;\n" +
         "PeriodicUpdateWindow.as = new AnalyticsSuite();";
     System.out.println(new FormatCommandHandler().getAlignedText(txt));
-    System.out.println();    txt = "  aa bb cc dd;\n" +
+    System.out.println();
+
+    txt = "  aa bb cc dd;\n" +
         "  aaa b    cccc;\n" +
         "  a bbbb c d;";
     System.out.println(new FormatCommandHandler().getAlignedText(txt));
@@ -277,23 +282,16 @@ public class FormatCommandHandler extends AbstractHandler {
     //--removes private\n"
     txt = "private IQPanel pnlRoot = null;\n" +
         "private JTabbedPane tpValidation = null;\n" +
+        "//wkejwkjfjkd jskdjfk lskdfjlksdjf\n" +
         "private ValidateInputTables validateInputTables = null;\n" +
         "private ManageProfiles manageProfiles = null;";
-    System.out.print(new FormatCommandHandler().getAlignedText(txt));
-    System.out.println("<>");
+    System.out.println(new FormatCommandHandler().getAlignedText(txt));
+    System.out.println();
 
-
-    /* --adds extra newline
-	 private IQPanel pnlRoot;
-private JTabbedPane tpValidation;
-private ValidateInputTables validateInputTables;
-private ManageProfiles manageProfiles;
-     */
-
-    /* -- comments/stuff after
-	 private Timestamp             initTimestamp; // When the update process was initiated.
-private Timestamp             endTimestamp;  // When the update process finished.
-     */
+    txt = "private Timestamp initTimestamp; // When the update process was initiated.\n" +
+        "private Time endTime; // Whens the update process finished.";
+    System.out.println(new FormatCommandHandler().getAlignedText(txt));
+    System.out.println();
 
     /*
 public static final String STATUS_FINALIZING = "Finalizing";
