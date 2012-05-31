@@ -145,14 +145,20 @@ public class FormatCommandHandler extends AbstractHandler {
 
     StringBuilder sb = new StringBuilder();
 
+    boolean first = true;
     for (Thing thing : things) {
+      if (first) {
+        first = false;
+      }
+      else {
+        sb.append("\n");
+      }
       sb.append(thing.leadingWS);
       sb.append(thing.LHS);
       if (thing.RHS.length() > 0) {
         sb.append("= ");
         sb.append(thing.RHS);
       }
-      sb.append("\n");
     }
 
     if (text.endsWith("\n")) {
@@ -268,12 +274,13 @@ public class FormatCommandHandler extends AbstractHandler {
     System.out.println(new FormatCommandHandler().getAlignedText(txt));
     System.out.println();
 
-    /* --removes private
-	 private IQPanel pnlRoot = null;
-private JTabbedPane tpValidation = null;
-private ValidateInputTables validateInputTables = null;
-private ManageProfiles manageProfiles = null;
-     */
+    //--removes private\n"
+    txt = "private IQPanel pnlRoot = null;\n" +
+        "private JTabbedPane tpValidation = null;\n" +
+        "private ValidateInputTables validateInputTables = null;\n" +
+        "private ManageProfiles manageProfiles = null;";
+    System.out.print(new FormatCommandHandler().getAlignedText(txt));
+    System.out.println("<>");
 
 
     /* --adds extra newline
@@ -299,187 +306,3 @@ public static final String STATUS_FINISHED   = "Finished";
   }
 
 }
-//private String getTextWithColumnsAligned(String text) {
-//    List<List<String>> items = new ArrayList<List<String>>();
-//    List<Integer> maxes = new ArrayList<Integer>();
-//
-//    String[] lines  = text.split("\n");
-//    Pattern pattern = Pattern.compile("(\\s*)(\\S+)\\s*");
-//
-//    for (String line : lines) {
-//      List<String> cols = new ArrayList<String>();
-//      Matcher matcher = pattern.matcher(line);
-//      int i = 0;
-//      while (matcher.find()) {
-//        if (i == 0) {
-//          //for convenience the leading whitespace goes into col 1
-//          cols.add(matcher.group(1));
-//          maxes.add(0);
-//          i++;
-//        }
-//        String item = matcher.group(2);
-//        cols.add(item);
-//        if (i == maxes.size()) {
-//          maxes.add(0);
-//        }
-//        int length = item.length();
-//        if (length > maxes.get(i)) {
-//          maxes.set(i, length);
-//        }
-//        i++;
-//      }
-//      items.add(cols);
-//
-//    }
-//
-//    StringBuilder sb = new StringBuilder();
-//    for (List<String> cols : items) {
-//      int i = 0;
-//      for (String item : cols) {
-//        sb.append(item);
-//        if (i != 0) {
-//          Integer max = maxes.get(i);
-//          for (int j = item.length(); j <= max; j++) {
-//            sb.append(" ");
-//          }
-//        }
-//        i++;
-//      }
-//      sb.append("\n");
-//    }
-//
-//    if (text.endsWith("\n")) {
-//      sb.append("\n");
-//    }
-//
-//    return sb.toString();
-//  }
-//
-//  public String getTextWithEqualsAligned(String text) {
-//
-//    String[] lines     = text.split("\n");
-//    List<Thing> things = new ArrayList<Thing>(lines.length);
-//
-//    int maxLHSPre = buildThingList(lines, things);
-//
-//    int maxLHS = convertForm2ToForm1(things, maxLHSPre);
-//
-//    StringBuilder resultStringBuilder = buildResultStringBuilder(things, maxLHS);
-//
-//    if (text.endsWith("\n")) {
-//      resultStringBuilder.append("\n");
-//    }
-//
-//    return resultStringBuilder.toString();
-//
-//  }
-//
-//  private StringBuilder buildResultStringBuilder(List<Thing> things, int maxLHS) {
-//
-//    StringBuilder sb = new StringBuilder();
-//
-//    //now we only need to work on correcting space for LHS
-//    boolean first = true;
-//    for (Thing thing : things) {
-//
-//      if (first) {
-//        first = false;
-//      }
-//      else {
-//        sb.append("\n");
-//      }
-//      if (thing.line != null) {
-//        sb.append(thing.line);
-//        continue;
-//      }
-//      sb.append(thing.LeadingWhitespace);
-//
-//      sb.append(thing.LHS);
-//      for (int i = thing.LHS.length(); i < maxLHS; i++) {
-//        sb.append(" ");
-//      }
-//      sb.append(" = ");
-//      sb.append(thing.RHS);
-//    }
-//    return sb;
-//  }
-//
-//  private int convertForm2ToForm1(List<Thing> things, int maxLHSPre) {
-//    int maxLHS = 0;
-//    //go through all the Things - if we find FORM 2: xxx yyy = zzz;
-//    //then correct the space between xxx and yyy and add xxx to LHS
-//    //effectively convertine FORM2 to FORM1 xxx = zzz;
-//    for (Thing thing : things) {
-//      if (thing.line != null) {
-//        continue;
-//      }
-//      if (thing.LHSPre.length() > 0) {
-//        for (int i = thing.LHSPre.length(); i <= maxLHSPre; i++) {
-//          thing.LHS = " " + thing.LHS;
-//        }
-//        thing.LHS = thing.LHSPre + thing.LHS;
-//      }
-//      if (thing.LHS.length() > maxLHS) {
-//        maxLHS = thing.LHS.length();
-//      }
-//    }
-//    return maxLHS;
-//  }
-//
-//  private int buildThingList(String[] lines, List<Thing> things) {
-//    int     maxLHSPre = 0;
-//    Pattern pattern   = Pattern.compile("(\\s*)(\\S+)(\\s*)(\\S*) *=(.*)");
-//
-//    for (String line : lines) {
-//
-//      Thing t = new Thing();
-//      if (hasMultipleEqualsSigns(line)) {
-//        //ignore lines with > 1 equals signs
-//        t.line = line;
-//      }
-//      else {
-//        Matcher m = pattern.matcher(line);
-//        if (m.find()) {
-//          //          for (int i = 1; i <= m.groupCount(); i++) {
-//          //            System.out.println("-" + m.group(i) + "-");
-//          //          }
-//          //          System.exit(0);
-//          t.LeadingWhitespace = m.group(1);
-//          t.RHS               = m.group(5).trim();
-//          if (m.group(4).length() == 0) {
-//            //FORM 1: xxx = zzz;
-//            t.LHSPre = "";
-//            t.LHS    = m.group(2).trim();
-//          }
-//          else {
-//            //FORM 2:  xxx yyy = zzz;
-//            t.LHSPre = m.group(2).trim();
-//            t.LHS    = m.group(4).trim();
-//          }
-//
-//          if (t.LHSPre.length() > maxLHSPre) {
-//            maxLHSPre = t.LHSPre.length();
-//          }
-//
-//        }
-//        else {
-//          //if it's not an assignment statement, just duplicate the line
-//          t.line = line;
-//        }
-//      }
-//      things.add(t);
-//    }
-//    return maxLHSPre;
-//  }
-//
-//  private boolean hasMultipleEqualsSigns(String line) {
-//    return line.indexOf('=') == -1 || line.indexOf('=') != line.lastIndexOf('=');
-//  }
-//
-//  private class Thing {
-//    String LeadingWhitespace;
-//    String LHSPre;
-//    String LHS;
-//    String RHS;
-//    String line;
-//  }
