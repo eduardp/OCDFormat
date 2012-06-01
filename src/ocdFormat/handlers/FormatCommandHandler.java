@@ -66,56 +66,12 @@ public class FormatCommandHandler extends AbstractHandler {
     return null;
   }
 
-  private class Thing {
-    public String LHS = "";
-    public String RHS = "";
-    public String separator = "";
-    public String leadingWS = "";
-    public String trailer   = "";
-    public boolean ignore = false;
-
-    @Override
-    public String toString() {
-      return "Thing: [" + leadingWS + "] " + LHS + "," + RHS;
-    }
-
-  }
-
   private String getAlignedText(String text) {
-    String[] lines  = text.split("\n");
+
     List<Thing> things = new ArrayList<Thing>();
-    Pattern pattern = Pattern.compile("(\\s*)([^=]+)(={0,1})(.*)");
-    for (String line : lines) {
-      Thing t = new Thing();
-      Matcher m = pattern.matcher(line);
-      if (m.find()) {
-        String theLHS = m.group(2);
-        if (theLHS.startsWith("//") || theLHS.contains("(") || theLHS.startsWith("/*") || theLHS.startsWith("*") || theLHS.endsWith("*\\\\")) {
-          t.LHS    = line;
-          t.ignore = true;
-        }
-        else if (theLHS.contains("//")){
-          int idx = theLHS.indexOf("//");
-          t.LHS = theLHS.substring(0, idx);
-          t.trailer = theLHS.substring(idx);
-          t.leadingWS = m.group(1);
-          while (t.LHS.endsWith(" ")) {
-            t.trailer = " " + t.trailer;
-            t.LHS = t.LHS.substring(0, t.LHS.length()-1);
-          }
-        }
-        else {
-          t.leadingWS = m.group(1);
-          t.LHS       = theLHS;
-          t.separator = m.group(3);
-          t.RHS       = t.separator.length()==0?"":m.group(4).trim();
-        }
-      }
-      else {
-        t.LHS    = line;
-        t.ignore = true;
-      }
-      things.add(t);
+
+    for (String line : text.split("\n")) {
+      things.add(getThingFromLine(line));
     }
 
     alignLeftHandSides(things);
@@ -125,24 +81,53 @@ public class FormatCommandHandler extends AbstractHandler {
     return buildFinalString(text, things);
   }
 
+  private Thing getThingFromLine(String line) {
+    Thing t = new Thing();
+    Pattern pattern = Pattern.compile("(\\s*)([^=]+)(={0,1})(.*)");
+    Matcher m = pattern.matcher(line);
+    if (m.find()) {
+      String theLHS = m.group(2);
+      if (theLHS.startsWith("//") || theLHS.contains("(") || theLHS.startsWith("/*") || theLHS.startsWith("*") || theLHS.endsWith("*\\\\")) {
+        t.LHS    = line;
+        t.ignore = true;
+      }
+      else if (theLHS.contains("//")){
+        int idx     = theLHS.indexOf("//");
+        t.LHS       = theLHS.substring(0, idx);
+        t.trailer   = theLHS.substring(idx);
+        t.leadingWS = m.group(1);
+        while (t.LHS.endsWith(" ")) {
+          //add any whitespace before the comment to the trailer
+          t.trailer = " " + t.trailer;
+          t.LHS = t.LHS.substring(0, t.LHS.length()-1);
+        }
+      }
+      else {
+        t.leadingWS = m.group(1);
+        t.LHS       = theLHS;
+        t.separator = m.group(3);
+        t.RHS       = t.separator.length()==0?"":m.group(4).trim();
+      }
+    }
+    else {
+      t.LHS    = line;
+      t.ignore = true;
+    }
+    return t;
+  }
+
   private String buildFinalString(String text, List<Thing> things) {
     StringBuilder sb = new StringBuilder();
 
-    boolean first = true;
-    for (Thing thing : things) {
-      if (first) {
-        first = false;
-      }
-      else {
+    for (int i = 0; i < things.size(); i++) {
+      Thing thing = things.get(i);
+      if (i > 0) {
         sb.append("\n");
       }
-      sb.append(thing.leadingWS);
-      sb.append(thing.LHS);
+      append(sb,thing.leadingWS,thing.LHS);
       if (!thing.ignore && thing.RHS.length() > 0) {
         if (thing.separator.length() > 0) {
-          sb.append(" ");
-          sb.append(thing.separator);
-          sb.append(" ");
+          append(sb," ",thing.separator," ");
         }
         sb.append(thing.RHS);
       }
@@ -156,8 +141,32 @@ public class FormatCommandHandler extends AbstractHandler {
     return sb.toString();
   }
 
+  private void append(StringBuilder sb, String... string) {
+    for (String str : string) {
+      sb.append(str);
+    }
+  }
+
+  /**
+   * after all the cols on the LHS has been aligned, we need to align all the LHSs as a whole to ensure the equals signs are aligned
+   */
   private void alignEqualsSigns(List<Thing> things) {
 
+    int maxLHS = getMaxLHS(things);
+
+    for (Thing thing : things) {
+      if (thing.RHS.length() == 0) {
+        continue;
+      }
+      thing.LHS = pad(thing.LHS, maxLHS);
+    }
+
+  }
+
+  /**
+   * returns the length of the longest LHS
+   */
+  private int getMaxLHS(List<Thing> things) {
     int maxLHS = 0;
     for (Thing thing : things) {
       if (thing.ignore || thing.RHS.length() == 0) {
@@ -167,30 +176,19 @@ public class FormatCommandHandler extends AbstractHandler {
         maxLHS = thing.LHS.length();
       }
     }
-
-    for (Thing thing : things) {
-      if (thing.RHS.length() == 0) {
-        continue;
-      }
-      int target = maxLHS - thing.LHS.length();
-      for (int i = 0; i < target; i++) {
-        thing.LHS += " ";
-      }
-    }
-
+    return maxLHS;
   }
 
   private void alignLeftHandSides(List<Thing> things) {
-
     List<List<String>> items = new ArrayList<List<String>>();
     List<Integer>      maxes = new ArrayList<Integer>();
-
     populateItemsAndMaxes(things, items, maxes);
-
     padLHSFields(things, items, maxes);
-
   }
 
+  /**
+   * for each line, space it's columns on the LHS according to the max size of the column
+   */
   private void padLHSFields(List<Thing> things, List<List<String>> items, List<Integer> maxes) {
     for (int index = 0; index < items.size(); index++) {
       List<String> cols = items.get(index);
@@ -208,6 +206,9 @@ public class FormatCommandHandler extends AbstractHandler {
     }
   }
 
+  /**
+   * populate a 2 dim array of items to be put into columns on the LHS. For each column, determine the maximum width
+   */
   private void populateItemsAndMaxes(List<Thing> things, List<List<String>> items, List<Integer> maxes) {
     Pattern pattern = Pattern.compile("\\s*(\\S+)\\s*");
     for (Thing t : things) {
@@ -227,12 +228,28 @@ public class FormatCommandHandler extends AbstractHandler {
     }
   }
 
+
   private String pad(String field, int length) {
     StringBuilder sb = new StringBuilder(field);
     for (int i = 0; i < length - field.length(); i++) {
       sb.append(" ");
     }
     return sb.toString();
+  }
+
+  private class Thing {
+    public String LHS = "";
+    public String RHS = "";
+    public String separator = "";
+    public String leadingWS = "";
+    public String trailer   = "";
+    public boolean ignore = false;
+
+    @Override
+    public String toString() {
+      return "Thing: [" + leadingWS + "] " + LHS + "," + RHS;
+    }
+
   }
 
   public static void main(String[] args) {
