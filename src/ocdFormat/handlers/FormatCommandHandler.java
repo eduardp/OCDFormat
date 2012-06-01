@@ -68,70 +68,73 @@ public class FormatCommandHandler extends AbstractHandler {
 
   private String getAlignedText(String text) {
 
-    List<Thing> things = new ArrayList<Thing>();
+    List<Expression> expressions = new ArrayList<Expression>();
 
     for (String line : text.split("\n")) {
-      things.add(getThingFromLine(line));
+      expressions.add(getExpressionFromLine(line));
     }
 
-    alignLeftHandSides(things);
+    alignLeftHandSides(expressions);
 
-    alignEqualsSigns(things);
+    alignEqualsSigns(expressions);
 
-    return buildFinalString(text, things);
+    return buildFinalString(text, expressions);
   }
 
-  private Thing getThingFromLine(String line) {
-    Thing t = new Thing();
-    Pattern pattern = Pattern.compile("(\\s*)([^=]+)(={0,1})(.*)");
-    Matcher m = pattern.matcher(line);
-    if (m.find()) {
-      String theLHS = m.group(2);
+  private Expression getExpressionFromLine(String line) {
+    Expression expression = new Expression();
+    Pattern    pattern    = Pattern.compile("(\\s*)([^=]+)(={0,1})(.*)");
+    Matcher    matcher    = pattern.matcher(line);
+    if (matcher.find()) {
+      String theLHS = matcher.group(2);
       if (theLHS.startsWith("//") || theLHS.contains("(") || theLHS.startsWith("/*") || theLHS.startsWith("*") || theLHS.endsWith("*\\\\")) {
-        t.LHS    = line;
-        t.ignore = true;
+        expression.LHS    = line;
+        expression.ignore = true;
       }
       else if (theLHS.contains("//")){
-        int idx     = theLHS.indexOf("//");
-        t.LHS       = theLHS.substring(0, idx);
-        t.trailer   = theLHS.substring(idx);
-        t.leadingWS = m.group(1);
-        while (t.LHS.endsWith(" ")) {
-          //add any whitespace before the comment to the trailer
-          t.trailer = " " + t.trailer;
-          t.LHS = t.LHS.substring(0, t.LHS.length()-1);
+        int idx              = theLHS.indexOf("//");
+        expression.LHS       = theLHS.substring(0, idx);
+        expression.trailer   = theLHS.substring(idx);
+        expression.leadingWS = matcher.group(1);
+        //add any whitespace before the comment to the trailer
+        while (expression.LHS.endsWith(" ")) {
+          expression.trailer = " " + expression.trailer;
+          expression.LHS     = expression.LHS.substring(0, expression.LHS.length()-1);
         }
       }
       else {
-        t.leadingWS = m.group(1);
-        t.LHS       = theLHS;
-        t.separator = m.group(3);
-        t.RHS       = t.separator.length()==0?"":m.group(4).trim();
+        expression.leadingWS = matcher.group(1);
+        expression.LHS       = theLHS;
+        expression.separator = matcher.group(3);
+        expression.RHS       = expression.separator.length()==0?"":matcher.group(4).trim();
       }
     }
     else {
-      t.LHS    = line;
-      t.ignore = true;
+      expression.LHS    = line;
+      expression.ignore = true;
     }
-    return t;
+    return expression;
   }
 
-  private String buildFinalString(String text, List<Thing> things) {
+  private String buildFinalString(String text, List<Expression> expressions) {
     StringBuilder sb = new StringBuilder();
 
-    for (int i = 0; i < things.size(); i++) {
-      Thing thing = things.get(i);
+    for (int i = 0; i < expressions.size(); i++) {
+      Expression expression = expressions.get(i);
       if (i > 0) {
         sb.append("\n");
       }
-      append(sb,thing.leadingWS,thing.LHS);
-      if (!thing.ignore && thing.RHS.length() > 0) {
-        if (thing.separator.length() > 0) {
-          append(sb," ",thing.separator," ");
+      append(sb,expression.leadingWS,expression.LHS);
+      if (!expression.ignore && expression.RHS.length() > 0) {
+        if (expression.separator.length() > 0) {
+          append(sb," ",expression.separator," ");
         }
-        sb.append(thing.RHS);
+        sb.append(expression.RHS);
       }
-      sb.append(thing.trailer);
+      sb.append(expression.trailer);
+      while (sb.charAt(sb.length()-1) == ' ') {
+        sb.deleteCharAt(sb.length()-1);
+      }
     }
 
     if (text.endsWith("\n")) {
@@ -150,15 +153,15 @@ public class FormatCommandHandler extends AbstractHandler {
   /**
    * after all the cols on the LHS has been aligned, we need to align all the LHSs as a whole to ensure the equals signs are aligned
    */
-  private void alignEqualsSigns(List<Thing> things) {
+  private void alignEqualsSigns(List<Expression> expressions) {
 
-    int maxLHS = getMaxLHS(things);
+    int maxLHS = getMaxLHS(expressions);
 
-    for (Thing thing : things) {
-      if (thing.RHS.length() == 0) {
+    for (Expression expression : expressions) {
+      if (expression.RHS.length() == 0) {
         continue;
       }
-      thing.LHS = pad(thing.LHS, maxLHS);
+      expression.LHS = pad(expression.LHS, maxLHS);
     }
 
   }
@@ -166,33 +169,33 @@ public class FormatCommandHandler extends AbstractHandler {
   /**
    * returns the length of the longest LHS
    */
-  private int getMaxLHS(List<Thing> things) {
+  private int getMaxLHS(List<Expression> expressions) {
     int maxLHS = 0;
-    for (Thing thing : things) {
-      if (thing.ignore || thing.RHS.length() == 0) {
+    for (Expression expression : expressions) {
+      if (expression.ignore || expression.RHS.length() == 0) {
         continue;
       }
-      if (maxLHS < thing.LHS.length()) {
-        maxLHS = thing.LHS.length();
+      if (maxLHS < expression.LHS.length()) {
+        maxLHS = expression.LHS.length();
       }
     }
     return maxLHS;
   }
 
-  private void alignLeftHandSides(List<Thing> things) {
+  private void alignLeftHandSides(List<Expression> expressions) {
     List<List<String>> items = new ArrayList<List<String>>();
     List<Integer>      maxes = new ArrayList<Integer>();
-    populateItemsAndMaxes(things, items, maxes);
-    padLHSFields(things, items, maxes);
+    populateItemsAndMaxes(expressions, items, maxes);
+    padLHSFields(expressions, items, maxes);
   }
 
   /**
    * for each line, space it's columns on the LHS according to the max size of the column
    */
-  private void padLHSFields(List<Thing> things, List<List<String>> items, List<Integer> maxes) {
+  private void padLHSFields(List<Expression> expressions, List<List<String>> items, List<Integer> maxes) {
     for (int index = 0; index < items.size(); index++) {
       List<String> cols = items.get(index);
-      if (!things.get(index).ignore) {
+      if (!expressions.get(index).ignore) {
         StringBuilder newLHS = new StringBuilder();
         for (int i = 0; i < cols.size(); i++) {
           String item = cols.get(i);
@@ -201,7 +204,7 @@ public class FormatCommandHandler extends AbstractHandler {
           }
           newLHS.append(pad(item,maxes.get(i)));
         }
-        things.get(index).LHS = newLHS.toString();
+        expressions.get(index).LHS = newLHS.toString();
       }
     }
   }
@@ -209,12 +212,12 @@ public class FormatCommandHandler extends AbstractHandler {
   /**
    * populate a 2 dim array of items to be put into columns on the LHS. For each column, determine the maximum width
    */
-  private void populateItemsAndMaxes(List<Thing> things, List<List<String>> items, List<Integer> maxes) {
+  private void populateItemsAndMaxes(List<Expression> expressions, List<List<String>> items, List<Integer> maxes) {
     Pattern pattern = Pattern.compile("\\s*(\\S+)\\s*");
-    for (Thing t : things) {
+    for (Expression expression : expressions) {
       List<String> cols = new ArrayList<String>();
-      if (!t.ignore) {
-        Matcher matcher = pattern.matcher(t.LHS);
+      if (!expression.ignore) {
+        Matcher matcher = pattern.matcher(expression.LHS);
         for(int i = 0; matcher.find(); i++) {
           String item = matcher.group(1);
           cols.add(item);
@@ -237,13 +240,13 @@ public class FormatCommandHandler extends AbstractHandler {
     return sb.toString();
   }
 
-  private class Thing {
-    public String LHS = "";
-    public String RHS = "";
-    public String separator = "";
-    public String leadingWS = "";
-    public String trailer   = "";
-    public boolean ignore = false;
+  private class Expression {
+    public String  LHS       = "";
+    public String  RHS       = "";
+    public String  separator = "";
+    public String  leadingWS = "";
+    public String  trailer   = "";
+    public boolean ignore    = false;
 
     @Override
     public String toString() {
@@ -252,6 +255,7 @@ public class FormatCommandHandler extends AbstractHandler {
 
   }
 
+  //test cases
   public static void main(String[] args) {
 
     String txt = "";
