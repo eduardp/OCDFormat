@@ -1,3 +1,18 @@
+/**
+ *   Copyright 2012 Eduard Penzhorn
+ * 
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ * 
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
 package ocdFormat.handlers;
 
 import java.util.ArrayList;
@@ -17,11 +32,6 @@ import org.eclipse.ui.handlers.HandlerUtil;
 import org.eclipse.ui.texteditor.IDocumentProvider;
 import org.eclipse.ui.texteditor.ITextEditor;
 
-/**
- * Our sample handler extends AbstractHandler, an IHandler base class.
- * @see org.eclipse.core.commands.IHandler
- * @see org.eclipse.core.commands.AbstractHandler
- */
 public class FormatCommandHandler extends AbstractHandler {
 
   @Override
@@ -32,32 +42,28 @@ public class FormatCommandHandler extends AbstractHandler {
       return null;
     }
 
-    TextSelection textSelection = (TextSelection)selection;
-    if (textSelection == null || !(textSelection instanceof TextSelection) ) {
+    if (selection == null || !(selection instanceof TextSelection) ) {
       return null;
     }
+    TextSelection textSelection = (TextSelection)selection;
 
     IEditorPart activeEditor = HandlerUtil.getActiveEditor(event);
     if (activeEditor == null || !(activeEditor instanceof ITextEditor) ) {
       return null;
     }
 
-    IDocumentProvider p = ((ITextEditor) activeEditor).getDocumentProvider();
-    if (p == null) {
+    IDocumentProvider documentProvider = ((ITextEditor)activeEditor).getDocumentProvider();
+    if (documentProvider == null) {
       return null;
     }
 
-    IDocument document = p.getDocument(activeEditor.getEditorInput());
+    IDocument document = documentProvider.getDocument(activeEditor.getEditorInput());
     if (document == null) {
       return null;
     }
 
     try {
-      String result = textSelection.getText();
-      result = getAlignedText(result);
-
-      document.replace(textSelection.getOffset(), textSelection.getLength(), result);
-
+      document.replace(textSelection.getOffset(), textSelection.getLength(), getAlignedText(textSelection.getText()));
     }
     catch (BadLocationException e) {
       return null;

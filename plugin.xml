@@ -29,12 +29,24 @@
             categoryId="OCDFormat.commands.formatCommands"
             id="OCDFormat.commands.formatCommand">
       </command>
+      <command
+            name="OCD Bracket Finder"
+            categoryId="OCDFormat.commands.formatCommands"
+            id="OCDFormat.commands.bracketFinderCommand">
+      </command>
    </extension>
    <extension
          point="org.eclipse.ui.handlers">
       <handler
             commandId="OCDFormat.commands.formatCommand"
             class="ocdFormat.handlers.FormatCommandHandler">
+      </handler>
+   </extension>
+   <extension
+         point="org.eclipse.ui.handlers">
+      <handler
+            commandId="OCDFormat.commands.bracketFinderCommand"
+            class="ocdFormat.handlers.BracketFinderCommandHandler">
       </handler>
    </extension>
    <extension
@@ -46,7 +58,15 @@
             schemeId="org.eclipse.ui.defaultAcceleratorConfiguration">
       </key>
    </extension>
-   
+   <extension
+         point="org.eclipse.ui.bindings">
+      <key
+            commandId="OCDFormat.commands.bracketFinderCommand"
+            contextId="org.eclipse.ui.contexts.window"
+            sequence="M1+5"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration">
+      </key>
+   </extension>
    <extension
          point="org.eclipse.ui.menus">
       <menuContribution
