@@ -89,7 +89,7 @@ public class FormatCommandHandler extends AbstractHandler {
 
   private Expression getExpressionFromLine(String line) {
     Expression expression = new Expression();
-    Pattern    pattern    = Pattern.compile("(\\s*)([^=]+)(={0,1})(.*)");
+    Pattern    pattern    = Pattern.compile("(\\s*)([^=]+)(=?>?)(.*)");
     Matcher    matcher    = pattern.matcher(line);
     if (matcher.find()) {
       String theLHS = matcher.group(2);
